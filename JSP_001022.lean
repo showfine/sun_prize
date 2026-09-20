@@ -19,7 +19,6 @@ Maintenance, compatibility fixes, and proof repair:
   - Verified 0-sorry end-to-end build and clean axiom audit
 -/
 import Mathlib
-import Mathlib
 
 namespace Erdos1196
 
