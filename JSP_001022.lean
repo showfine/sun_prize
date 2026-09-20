@@ -1,22 +1,24 @@
-/- leanprover/lean4:v4.33.0  mathlib v4.33.0 -/
+/- leanprover/lean4:v4.33.0 mathlib v4.33.0 -/
 /-
-This is a Lean formalization of a solution to Erdős Problem 1196.
+This is a Lean formalization of a solution to Erdős Problem 1196 (JSP-001022).
 https://www.erdosproblems.com/forum/thread/1196
 
 Informal authors:
 - GPT-5.4 Pro
 - Liam Price
 
-Formal authors:
+Original formal authors:
 - gauss-math-inc
 - Math, Inc.
+- Upstream repo: https://github.com/math-inc/Erdos1196
 
-URLs:
-- https://www.erdosproblems.com/forum/thread/1196#post-5469
-- https://github.com/math-inc/Erdos1196/tree/02fba13be7487cc51315f68d8fa7ef277633d3c8
-- https://github.com/math-inc/Erdos1196/blob/02fba13be7487cc51315f68d8fa7ef277633d3c8/PrimitiveSetsAboveX/FormalConjecturesErdos1196.lean
-- https://github.com/math-inc/Erdos1196/blob/02fba13be7487cc51315f68d8fa7ef277633d3c8/source.tex
+Maintenance, compatibility fixes, and proof repair:
+- Showfine Jiang (@showfine)
+  - Fixed calculus derivative proofs (hasDerivAt_inv_log_sq_mul)
+  - Resolved Lean 4 / Mathlib version incompatibilities
+  - Verified 0-sorry end-to-end build and clean axiom audit
 -/
+import Mathlib
 import Mathlib
 
 namespace Erdos1196
