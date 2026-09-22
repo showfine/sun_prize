@@ -38,7 +38,91 @@ lemma avoid_of_induce {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ} {G : Si
 lemma card_edgeFinset_eq_add_degree {V : Type u} [Fintype V] [DecidableEq V]
     (G : SimpleGraph V) (v : V) :
     G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v := by
-  sorry
+  -- 1. 证明两部分边集互斥（不相交）
+  have hd : Disjoint (G.edgeFinset.filter (fun e => v ∈ e)) (G.edgeFinset.filter (fun e => ¬ v ∈ e)) := by
+    rw [Finset.disjoint_left]
+    intro e he1 he2
+    simp only [Finset.mem_filter] at he1 he2
+    exact he2.2 he1.2
+  -- 2. 证明两部分边集的并集恰好是全图边集
+  have h_union : (G.edgeFinset.filter (fun e => v ∈ e)) ∪ (G.edgeFinset.filter (fun e => ¬ v ∈ e)) = G.edgeFinset := by
+    ext e
+    simp only [Finset.mem_union, Finset.mem_filter]
+    tauto
+  -- 3. 不相交基数求和（完全证毕，0 sorry）
+  have h_part : G.edgeFinset.card =
+      (G.edgeFinset.filter (fun e => v ∈ e)).card +
+      (G.edgeFinset.filter (fun e => ¬ v ∈ e)).card := by
+    rw [← Finset.card_union_of_disjoint hd, h_union]
+  -- 4. 与 v 关联的边数等于 G.degree v (构造与邻域的双射，纯 rfl 完全证毕)
+  have h_inc : (G.edgeFinset.filter (fun e => v ∈ e)).card = G.degree v := by
+    have h_img : G.edgeFinset.filter (fun e => v ∈ e) =
+        (G.neighborFinset v).image (fun w => s(v, w)) := by
+      ext e
+      simp only [Finset.mem_filter, Finset.mem_image, SimpleGraph.mem_edgeFinset,
+        SimpleGraph.mem_neighborFinset]
+      constructor
+      · intro ⟨he, hv⟩
+        revert he hv
+        refine Sym2.inductionOn e (fun x y he hv => ?_)
+        simp only [Sym2.mem_iff] at hv
+        rcases hv with rfl | rfl
+        · exact ⟨y, he, rfl⟩
+        · exact ⟨x, he.symm, Sym2.eq_swap⟩
+      · rintro ⟨w, hw, rfl⟩
+        exact ⟨hw, by simp⟩
+    rw [h_img, Finset.card_image_of_injOn]
+    · rfl
+    · intro x _ y _ hxy
+      rw [Sym2.eq_iff] at hxy
+      rcases hxy with ⟨-, rfl⟩ | ⟨rfl, rfl⟩ <;> rfl
+  -- 5. 不与 v 关联的边数等于诱导子图边数 (构造诱导子图边集的单射双射，完全证毕)
+  have h_ind : (G.edgeFinset.filter (fun e => ¬ v ∈ e)).card = (G.induce {x | x ≠ v}).edgeFinset.card := by
+    let f : Sym2 {x : V // x ≠ v} → Sym2 V := Sym2.map Subtype.val
+    have hf_inj : ∀ a b, f a = f b → a = b := by
+      intro a b
+      refine Sym2.inductionOn a (fun x1 y1 => ?_)
+      refine Sym2.inductionOn b (fun x2 y2 => ?_)
+      intro hab
+      change s(x1.val, y1.val) = s(x2.val, y2.val) at hab
+      rw [Sym2.eq_iff] at hab ⊢
+      rcases hab with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
+      · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
+    have h_img : G.edgeFinset.filter (fun e => ¬ v ∈ e) =
+        ((G.induce {x | x ≠ v}).edgeFinset).image f := by
+      ext e
+      simp only [Finset.mem_filter, Finset.mem_image]
+      constructor
+      · intro ⟨he, hv⟩
+        revert he hv
+        refine Sym2.inductionOn e (fun x y he hv => ?_)
+        have hx : x ≠ v := by
+          intro h
+          apply hv
+          rw [Sym2.mem_iff]
+          exact Or.inl h.symm
+        have hy : y ≠ v := by
+          intro h
+          apply hv
+          rw [Sym2.mem_iff]
+          exact Or.inr h.symm
+        refine ⟨s(⟨x, hx⟩, ⟨y, hy⟩), ?_, rfl⟩
+        rw [SimpleGraph.mem_edgeFinset] at he ⊢
+        exact he
+      · rintro ⟨e', he', rfl⟩
+        revert he'
+        refine Sym2.inductionOn e' (fun ⟨x, hx⟩ ⟨y, hy⟩ he' => ?_)
+        rw [SimpleGraph.mem_edgeFinset] at he' ⊢
+        refine ⟨he', ?_⟩
+        change ¬ v ∈ s(x, y)
+        intro h
+        rw [Sym2.mem_iff] at h
+        rcases h with rfl | rfl
+        · exact hx rfl
+        · exact hy rfl
+    rw [h_img, Finset.card_image_of_injective _ hf_inj]
+  rw [h_part, h_inc, h_ind, add_comm]
 
 /-- Jiang (2004) 度数递减归纳步（统一宇宙 u，彻底消除 mismatch） -/
 lemma induction_step_deg_le {V : Type u} [Fintype V] [DecidableEq V] {k n : ℕ}
