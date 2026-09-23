@@ -876,16 +876,71 @@ lemma forest_bound_le_jiang_bound (k : ℕ) (hk : 1 ≤ k) (n : ℕ) (hn : n = 3
     linarith
   linarith
 
-/--
-【AXIOMATIC ISOLATION 1】经典图论基本定理：无圈图（森林）的边数不超过顶点数。
-Note: 这是一个普适的图论常识 (E ≤ V - c < V, 其中 c 为连通分支数)。
-为了保持 Erdős Problem 767 (JSP-000628) 核心逻辑的聚焦，避免陷入底层连通性理论的繁冗构造，
-我们在此处将其作为已知的基础图论公理进行隔离调用。
--/
+/-- 辅助引理：诱导子图保无圈性 -/
+lemma avoid_cycle_of_induce {V : Type u} [Fintype V] [DecidableEq V] {G : SimpleGraph V}
+    {s : Set V} (hG : ¬HasCycle G) : ¬HasCycle (G.induce s) := by
+  intro ⟨v, c, hc_edges, hc_nodup, hc_len⟩
+  apply hG
+  refine ⟨v.val, walkOfInduce c, ?_, ?_, ?_⟩
+  · rw [walkOfInduce_edges]
+    exact List.Nodup.map sym2_map_subtype_val_injective hc_edges
+  · rw [walkOfInduce_support, list_map_dropLast]
+    exact List.Nodup.map Subtype.val_injective hc_nodup
+  · rw [walkOfInduce_length]
+    exact hc_len
+
+/-- 核心洞察：没有圈 ↔ 没有带 0 条弦的圈 -/
+lemma hasCycle_iff_hasCycleWith0Chords {V : Type u} {G : SimpleGraph V} :
+    HasCycle G ↔ HasCycleWithKIncidentChords 0 G := by
+  constructor
+  · rintro ⟨v, c, hc1, hc2, hc3⟩
+    have f : Fin 0 → V := fun i => i.elim0
+    have hf_inj : Function.Injective f := by
+      intro i
+      exact i.elim0
+    have hf_chords : ∀ i, c.IsChord s(v, f i) := by
+      intro i
+      exact i.elim0
+    exact ⟨v, c, hc1, hc2, hc3, f, hf_inj, hf_chords⟩
+  · rintro ⟨v, c, hc1, hc2, hc3, _⟩
+    exact ⟨v, c, hc1, hc2, hc3⟩
+
+/-- 归纳步：无圈图的边数上界证明 -/
+lemma edgeFinset_card_le_card_of_acyclic_aux (n : ℕ) :
+    ∀ {V : Type u} [Fintype V] [DecidableEq V] (hV : Fintype.card V = n)
+      (G : SimpleGraph V), ¬HasCycle G → G.edgeFinset.card ≤ n := by
+  induction n with
+  | zero =>
+    intro V _ _ hV G _
+    have h_empty : IsEmpty V := Fintype.card_eq_zero_iff.mp hV
+    have hE : G.edgeFinset = ∅ := by
+      ext e
+      exact Sym2.inductionOn e (fun x _ => isEmptyElim x)
+    rw [hE, Finset.card_empty]
+  | succ n ih =>
+    intro V _ _ hV G h_avoid
+    have h_avoid_0 : ¬HasCycleWithKIncidentChords 0 G := by
+      intro h
+      exact h_avoid (hasCycle_iff_hasCycleWith0Chords.mpr h)
+    obtain ⟨v, hv⟩ := exists_vert_deg_le_of_avoid hV G h_avoid_0
+    have hcard : Fintype.card {x : V // x ≠ v} = n := by
+      rw [Fintype.card_subtype_compl, hV]
+      simp
+    have h_ind_bound : (G.induce {x | x ≠ v}).edgeFinset.card ≤ n :=
+      ih hcard (G.induce {x | x ≠ v}) (avoid_cycle_of_induce h_avoid)
+    have h_deg : G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v :=
+      card_edgeFinset_eq_add_degree G v
+    -- 利用 calc 强制代数对齐，彻底绕开 omega 的变量映射盲区
+    calc
+      G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v := h_deg
+      _ ≤ n + (0 + 1) := Nat.add_le_add h_ind_bound hv
+      _ = n + 1 := rfl
+
+/-- 彻底闭环：无圈图（森林）的边数不超过顶点数 -/
 lemma edgeFinset_card_le_card_of_acyclic {V : Type u} [Fintype V] [DecidableEq V]
     (G : SimpleGraph V) (h_no_cycle : ¬HasCycle G) :
-    G.edgeFinset.card ≤ Fintype.card V := by
-  sorry
+    G.edgeFinset.card ≤ Fintype.card V :=
+  edgeFinset_card_le_card_of_acyclic_aux (Fintype.card V) rfl G h_no_cycle
 
 /--
 【AXIOMATIC ISOLATION 2】Bondy 极长圈边数引理。
