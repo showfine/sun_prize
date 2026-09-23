@@ -26,10 +26,10 @@ def HasCycleWithKIncidentChords (k : ℕ) (G : SimpleGraph V) : Prop :=
     ∃ f : Fin k → V, Function.Injective f ∧ ∀ i, c.IsChord s(v, f i)
 
 /-!
-### 模块一：子图性质与删点边数拆分
+### Module 1: Subgraph properties and edge-count decomposition under vertex deletion
 -/
 
-/-- 无向对在子类型嵌入下的单射性 -/
+/-- Injectivity of the undirected-pair map under subtype embedding. -/
 lemma sym2_map_subtype_val_injective {V : Type u} {s : Set V} :
     Function.Injective (Sym2.map (Subtype.val : s → V)) := by
   intro a b
@@ -42,11 +42,11 @@ lemma sym2_map_subtype_val_injective {V : Type u} {s : Set V} :
   · exact Or.inl ⟨Subtype.ext h1, Subtype.ext h2⟩
   · exact Or.inr ⟨Subtype.ext h1, Subtype.ext h2⟩
 
-/-- 显式将诱导子图的邻接关系固化为原图的邻接关系，避免透明度统合失败 -/
+/-- Coerce the adjacency of an induced subgraph back into the ambient graph. -/
 lemma induce_adj_to_adj {V : Type u} {G : SimpleGraph V} {s : Set V} {u v : s}
     (h : (G.induce s).Adj u v) : G.Adj u.val v.val := h
 
-/-- 将诱导子图上的 walk 逐边提升回原图 -/
+/-- Lift a walk on an induced subgraph edge-by-edge back to the ambient graph. -/
 def walkOfInduce {V : Type u} {G : SimpleGraph V} {s : Set V} {u v : s} :
     (G.induce s).Walk u v → G.Walk u.val v.val
   | .nil => .nil
@@ -80,7 +80,7 @@ def walkOfInduce {V : Type u} {G : SimpleGraph V} {s : Set V} {u v : s} :
     rw [ih]
     rfl
 
-/-- List.map 与 dropLast 的交换律（自包含纯模式匹配） -/
+/-- Distributivity of `List.map` over `dropLast` (proved by self-contained pattern matching). -/
 lemma list_map_dropLast {α β : Type*} (f : α → β) : ∀ (l : List α),
     (l.map f).dropLast = l.dropLast.map f
   | [] => rfl
@@ -89,40 +89,40 @@ lemma list_map_dropLast {α β : Type*} (f : α → β) : ∀ (l : List α),
     show f x :: ((y :: xs).map f).dropLast = f x :: (y :: xs).dropLast.map f
     rw [list_map_dropLast f (y :: xs)]
 
-/-- 删点后的诱导子图不包含带 k 弦的圈（子图保避免性） -/
+/-- An induced subgraph of a graph avoiding `k`-incident-chord cycles also avoids them. -/
 lemma avoid_of_induce {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ} {G : SimpleGraph V}
     {s : Set V} (hG : ¬HasCycleWithKIncidentChords k G) :
     ¬HasCycleWithKIncidentChords k (G.induce s) := by
   intro ⟨v, c, hc_edges, hc_nodup, hc_len, f, hf_inj, hf_chords⟩
   apply hG
   refine ⟨v.val, walkOfInduce c, ?_, ?_, ?_, fun i => (f i).val, ?_, ?_⟩
-  · -- 1. edges 无重复
+  · -- 1. Edges have no repeats
     rw [walkOfInduce_edges]
     exact List.Nodup.map sym2_map_subtype_val_injective hc_edges
-  · -- 2. support.dropLast 无重复
+  · -- 2. support.dropLast has no repeats
     rw [walkOfInduce_support, list_map_dropLast]
     exact List.Nodup.map Subtype.val_injective hc_nodup
-  · -- 3. 圈长度 ≥ 3
+  · -- 3. Cycle length ≥ 3
     rw [walkOfInduce_length]
     exact hc_len
-  · -- 4. 弦端点映射为单射
+  · -- 4. Chord-endpoint map is injective
     intro i j hij
     exact hf_inj (Subtype.ext hij)
-  · -- 5. 保持弦的性质
+  · -- 5. The chord property is preserved
     intro i
     have hc := hf_chords i
     constructor
-    · -- 5.1 弦边属于原图边集
+    · -- 5.1 The chord edge belongs to the ambient edge set
       exact hc.1
     · constructor
-      · -- 5.2 弦边不属于圈上的边
+      · -- 5.2 The chord edge is not an edge of the cycle
         intro he
         rw [walkOfInduce_edges, List.mem_map] at he
         rcases he with ⟨e, he_mem, he_eq⟩
         have he_eq' : e = s(v, f i) := sym2_map_subtype_val_injective he_eq
         subst he_eq'
         exact hc.2.1 he_mem
-      · -- 5.3 弦的两端点都在圈的顶点集 (support) 上
+      · -- 5.3 Both endpoints of the chord lie on the cycle's support
         have hsupp := hc.2.2
         dsimp at hsupp ⊢
         rw [walkOfInduce_support]
@@ -132,27 +132,27 @@ lemma avoid_of_induce {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ} {G : Si
         · rw [List.mem_map]
           exact ⟨f i, hsupp.2, rfl⟩
 
-/-- 删去一个点后，原图的边数等于子图边数加上该点的度数 -/
+/-- Deleting a vertex splits the edge set into the induced-subgraph edges plus the vertex's incident edges. -/
 lemma card_edgeFinset_eq_add_degree {V : Type u} [Fintype V] [DecidableEq V]
     (G : SimpleGraph V) (v : V) :
     G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v := by
-  -- 1. 证明两部分边集互斥（不相交）
+  -- 1. The two parts of the edge set are disjoint.
   have hd : Disjoint (G.edgeFinset.filter (fun e => v ∈ e)) (G.edgeFinset.filter (fun e => ¬ v ∈ e)) := by
     rw [Finset.disjoint_left]
     intro e he1 he2
     simp only [Finset.mem_filter] at he1 he2
     exact he2.2 he1.2
-  -- 2. 证明两部分边集的并集恰好是全图边集
+  -- 2. The union of the two parts equals the entire edge set.
   have h_union : (G.edgeFinset.filter (fun e => v ∈ e)) ∪ (G.edgeFinset.filter (fun e => ¬ v ∈ e)) = G.edgeFinset := by
     ext e
     simp only [Finset.mem_union, Finset.mem_filter]
     tauto
-  -- 3. 不相交基数求和（完全证毕，0 sorry）
+  -- 3. Disjoint parts sum to the total cardinality.
   have h_part : G.edgeFinset.card =
       (G.edgeFinset.filter (fun e => v ∈ e)).card +
       (G.edgeFinset.filter (fun e => ¬ v ∈ e)).card := by
     rw [← Finset.card_union_of_disjoint hd, h_union]
-  -- 4. 与 v 关联的边数等于 G.degree v (构造与邻域的双射，纯 rfl 完全证毕)
+  -- 4. The number of edges incident to `v` equals `G.degree v` via a bijection with the neighborhood.
   have h_inc : (G.edgeFinset.filter (fun e => v ∈ e)).card = G.degree v := by
     have h_img : G.edgeFinset.filter (fun e => v ∈ e) =
         (G.neighborFinset v).image (fun w => s(v, w)) := by
@@ -174,7 +174,7 @@ lemma card_edgeFinset_eq_add_degree {V : Type u} [Fintype V] [DecidableEq V]
     · intro x _ y _ hxy
       rw [Sym2.eq_iff] at hxy
       rcases hxy with ⟨-, rfl⟩ | ⟨rfl, rfl⟩ <;> rfl
-  -- 5. 不与 v 关联的边数等于诱导子图边数 (构造诱导子图边集的单射双射，完全证毕)
+  -- 5. The number of edges not incident to `v` equals the induced-subgraph edge count via an injection.
   have h_ind : (G.edgeFinset.filter (fun e => ¬ v ∈ e)).card = (G.induce {x | x ≠ v}).edgeFinset.card := by
     let f : Sym2 {x : V // x ≠ v} → Sym2 V := Sym2.map Subtype.val
     have hf_inj : ∀ a b, f a = f b → a = b := by
@@ -222,7 +222,7 @@ lemma card_edgeFinset_eq_add_degree {V : Type u} [Fintype V] [DecidableEq V]
     rw [h_img, Finset.card_image_of_injective _ hf_inj]
   rw [h_part, h_inc, h_ind, add_comm]
 
-/-- Jiang (2004) 度数递减归纳步（统一宇宙 u，彻底消除 mismatch） -/
+/-- Jiang (2004) inductive step: handle vertices of degree `≤ k + 1`. -/
 lemma induction_step_deg_le {V : Type u} [Fintype V] [DecidableEq V] {k n : ℕ}
     (hV : Fintype.card V = n + 1) (G : SimpleGraph V) (v : V)
     (hn : 3 * k + 3 ≤ n)
@@ -251,7 +251,7 @@ lemma induction_step_deg_le {V : Type u} [Fintype V] [DecidableEq V] {k n : ℕ}
   exact add_le_add h_ind_bound hdeg
 
 /-!
-### 模块二：Jiang (2004) 核心代数二次放缩（已证毕）
+### Module 2: Jiang (2004) core quadratic bound
 -/
 
 lemma jiang_quadratic_bound (k c : ℕ) (n : ℕ) (hn : n = 3 * k + 3) (hc : c ≤ n) :
@@ -272,10 +272,10 @@ lemma jiang_quadratic_bound (k c : ℕ) (n : ℕ) (hn : n = 3 * k + 3) (hc : c �
   linarith
 
 /-!
-### 模块三：Czipszer 最小度引理与低度数顶点的存在性
+### Module 3: Czipszer minimum-degree lemma and existence of low-degree vertices
 -/
 
-/-- 走步中边的端点必然落在其支撑顶点集 (support) 上 -/
+/-- Endpoints of a walk edge always lie on the walk's support. -/
 lemma mem_support_of_mem_edges {V : Type u} {G : SimpleGraph V} {u v : V}
     (p : G.Walk u v) {e : Sym2 V} (he : e ∈ p.edges) {x : V} (hx : x ∈ e) :
     x ∈ p.support := by
@@ -292,7 +292,7 @@ lemma mem_support_of_mem_edges {V : Type u} {G : SimpleGraph V} {u v : V}
       · exact Or.inr q.start_mem_support
     · exact Or.inr (ih he_tail)
 
-/-- 极大路径强归纳辅助引理：整条路径 support 保持全局 Nodup -/
+/-- Strong-induction helper for the maximal-path lemma: the path's support remains globally `Nodup`. -/
 lemma exists_maximal_path_aux {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) :
     ∀ (m : ℕ) (u v : V) (p : G.Walk u v),
       p.support.Nodup → p.edges.Nodup →
@@ -329,7 +329,7 @@ lemma exists_maximal_path_aux {V : Type u} [Fintype V] [DecidableEq V] (G : Simp
       omega
     exact ih (Fintype.card V - p_ext.length) h_lt w v p_ext hp_ext_supp hp_ext_edges rfl
 
-/-- 极大路径引理（提供全局 p.support.Nodup） -/
+/-- Maximal-path lemma: returns a path with globally `Nodup` support. -/
 lemma exists_maximal_path {V : Type u} [Fintype V] [DecidableEq V] {n : ℕ}
     (hV : Fintype.card V = n + 1) (G : SimpleGraph V) :
     ∃ (u v : V) (p : G.Walk u v),
@@ -344,8 +344,8 @@ lemma exists_maximal_path {V : Type u} [Fintype V] [DecidableEq V] {n : ℕ}
   have hp0_edges : p0.edges.Nodup := List.nodup_nil
   exact exists_maximal_path_aux G (Fintype.card V) u0 u0 p0 hp0_supp hp0_edges rfl
 
-/-- 截断走步存在性引理（0 sorry 完全证毕）：
-    若顶点 z 在走步 p 上，则存在从起点到 z 的子走步，其顶点集与边集严格是原走步的子列表 -/
+/-- If vertex `z` lies on a walk `p`, there exists a sub-walk from the start to `z`
+whose vertex and edge lists are strictly sublists of the original. -/
 lemma exists_walk_take_until {V : Type u} {G : SimpleGraph V} :
     ∀ {u v : V} (p : G.Walk u v) (z : V), z ∈ p.support →
       ∃ (r : G.Walk u z), r.support.Sublist p.support ∧ r.edges.Sublist p.edges
@@ -364,7 +364,7 @@ lemma exists_walk_take_until {V : Type u} {G : SimpleGraph V} :
       · simp only [SimpleGraph.Walk.edges_cons]
         exact List.Sublist.cons_cons _ hr_edges
 
-/-- 走步拼接算子（自包含纯模式匹配递归） -/
+/-- Walk concatenation (self-contained pattern-matching recursion). -/
 def walkAppend {V : Type u} {G : SimpleGraph V} :
     ∀ {u v w : V}, G.Walk u v → G.Walk v w → G.Walk u w
   | _, _, _, .nil, q => q
@@ -387,7 +387,7 @@ def walkAppend {V : Type u} {G : SimpleGraph V} :
     simp only [walkAppend, SimpleGraph.Walk.length_cons, ih]
     omega
 
-/-- 闭圈构造算子：将 u rightsquigarrow z 与反向回边 z - u 闭合成圈 -/
+/-- Close a path `u ↝ z` into a cycle by appending the reverse edge `z ↔ u`. -/
 def closeCycle {V : Type u} {G : SimpleGraph V} {u z : V}
     (r : G.Walk u z) (hz : G.Adj u z) : G.Walk u u :=
   walkAppend r (.cons (G.adj_symm hz) .nil)
@@ -404,7 +404,7 @@ def closeCycle {V : Type u} {G : SimpleGraph V} {u z : V}
   simp only [closeCycle, walkAppend_length, SimpleGraph.Walk.length_cons,
     SimpleGraph.Walk.length_nil]
 
-/-- 走步追加单步并截取末尾顶点，与原走步顶点集一致（纯结构定义规约，0 sorry 完全证毕） -/
+/-- After appending a single step and dropping the final vertex, the support matches the original. -/
 lemma walkAppend_cons_nil_support_dropLast {V : Type u} {G : SimpleGraph V} :
     ∀ {u z w : V} (r : G.Walk u z) (h : G.Adj z w),
       (walkAppend r (SimpleGraph.Walk.cons h .nil)).support.dropLast = r.support
@@ -414,13 +414,13 @@ lemma walkAppend_cons_nil_support_dropLast {V : Type u} {G : SimpleGraph V} :
     have ih := walkAppend_cons_nil_support_dropLast (SimpleGraph.Walk.cons h2 r') hz
     exact congr_arg (List.cons u) ih
 
-/-- 闭圈去掉末端点后，其顶点集恰好等于原截断路径的顶点集（0 sorry 完全证毕） -/
+/-- Dropping the final vertex from a closed cycle gives the original truncated path's support. -/
 lemma closeCycle_support_dropLast {V : Type u} {G : SimpleGraph V}
     {u z : V} (r : G.Walk u z) (hz : G.Adj u z) :
     (closeCycle r hz).support.dropLast = r.support :=
   walkAppend_cons_nil_support_dropLast r (G.adj_symm hz)
 
-/-- 辅助引理：利用 filter 从极大路径中提取【严格保序】的邻居子列表 -/
+/-- Helper: extract an order-preserving sublist of neighbors from a maximal path via `filter`. -/
 lemma exists_ordered_neighbors_on_path {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ}
     (G : SimpleGraph V) (u v : V) (p : G.Walk u v)
     (h_nodup : p.support.Nodup)
@@ -443,7 +443,7 @@ lemma exists_ordered_neighbors_on_path {V : Type u} [Fintype V] [DecidableEq V] 
     exact of_decide_eq_true hw.2
 
 /-!
-### 模块三辅助：隔离舱 (几何非自交性与圈长严格证明 0 sorry!)
+### Module 3 helpers: isolation chamber (geometric self-avoidance and cycle-length argument)
 -/
 
 lemma walk_from_x_to_x_nil {V : Type u} {G : SimpleGraph V} {x : V}
@@ -524,7 +524,7 @@ lemma head_eq_getLast_contradiction {α : Type*} {l : List α} {z : α} {tail : 
     have h_nodup_cons := List.nodup_cons.mp hl_nodup
     exact h_nodup_cons.1 hz_mem
 
-/-- 抽象隔离模块 1：截断路径的回边非自交性判定 (0 sorry!) -/
+/-- Isolation module 1: rule out the closing edge appearing on the truncated path. -/
 lemma czipszer_edge_and_length_aux {V : Type u} [DecidableEq V]
     (G : SimpleGraph V) (u v : V) (p : G.Walk u v) (h_nodup : p.support.Nodup)
     (l : List V) (hl_eq : l = p.support.filter (fun x => G.Adj u x))
@@ -563,7 +563,7 @@ lemma czipszer_edge_and_length_aux {V : Type u} [DecidableEq V]
   obtain ⟨tail, hl_struct_eq⟩ := hl_struct
   exact head_eq_getLast_contradiction hl_nodup hl_len hl_struct_eq hl_ne hz_eq
 
-/-- 任意无重复边的非空闭走步，其长度必然 ≥ 3 (纯图论通用引理，0 sorry!) -/
+/-- A closed walk with no repeated edges and positive length has length at least 3. -/
 lemma cycle_length_ge_three {V : Type u} {G : SimpleGraph V}
     {u : V} (c : G.Walk u u) (h_nodup : c.edges.Nodup) (h_pos : 0 < c.length) :
     3 ≤ c.length := by
@@ -581,7 +581,6 @@ lemma cycle_length_ge_three {V : Type u} {G : SimpleGraph V}
         have h_edges_cons := List.nodup_cons.mp h_nodup
         exfalso
         apply h_edges_cons.1
-        -- 抛弃 simp 的表层语法匹配，利用 apply 的底层定义等价 (DefEq) 自动计算列表展开
         apply List.mem_singleton.mpr
         exact Sym2.eq_swap
       | cons h3 p3 =>
@@ -655,7 +654,7 @@ lemma walk_cons_of_adj {V : Type u} {G : SimpleGraph V} {u z : V}
   | nil => exact False.elim (G.ne_of_adj hz rfl)
   | cons h1 r1 => exact ⟨_, h1, r1, rfl⟩
 
-/-- 抽象隔离模块 2：单射弦映射的拓扑存在性构造 (最终绝杀，完全 0 sorry!) -/
+/-- Isolation module 2: topological construction of the injective chord map. -/
 lemma czipszer_chords_aux {V : Type u} {k : ℕ}
     (G : SimpleGraph V) (u v : V) (p : G.Walk u v)
     (l : List V) (hl_eq : l = p.support.filter (fun x => G.Adj u x))
@@ -668,7 +667,7 @@ lemma czipszer_chords_aux {V : Type u} {k : ℕ}
     (hz_adj : G.Adj u z) (c : G.Walk u u) (hc_eq : c = closeCycle r hz_adj)
     (h_nodup_p : p.support.Nodup) :
     ∃ f : Fin k → V, Function.Injective f ∧ ∀ i, c.IsChord s(u, f i) := by
-  -- 1. 证明所有邻居都必然落在截断前缀 r 的支撑集内
+  -- 1. Every neighbor of `u` on the path must lie on the truncated prefix `r`.
   have hp_supp_eq : p.support = r.support ++ q.support.tail := by
     rw [hp_eq, walkAppend_support]
   have hl_split : l = r.support.filter (fun x => G.Adj u x) ++
@@ -683,10 +682,10 @@ lemma czipszer_chords_aux {V : Type u} {k : ℕ}
   have hl_eq_r : l = r.support.filter (fun x => G.Adj u x) := by
     rw [hl_split, hq_tail_empty, List.append_nil]
 
-  -- 2. 分解 r 得到首个步长中介顶点 w（单行直接调用独立引理，避免上下文污染）
+  -- 2. Decompose `r` to expose the first intermediate vertex `w`.
   obtain ⟨w, h1, r1, hr_eq⟩ := walk_cons_of_adj r hz_adj
 
-  -- 3. 构造坏点集 Bad 并放缩弦集合 Chords 的大小
+  -- 3. Construct the bad-vertex set and bound the chord candidate set.
   let L := l.toFinset
   let Bad : Finset V := {z, w}
   have h_bad_card : Bad.card ≤ 2 := by
@@ -707,7 +706,7 @@ lemma czipszer_chords_aux {V : Type u} {k : ℕ}
       Finset.card_le_card Finset.inter_subset_right
     omega
 
-  -- 4. 提取 k 个顶点的子集并构建严格单射 f
+  -- 4. Extract a size-`k` subset of chord candidates and build the injective map `f`.
   obtain ⟨Chords_k, h_sub_k, h_card_eq⟩ := Finset.exists_subset_card_eq h_Chords_card
   have h_list_len : Chords_k.toList.length = k := by
     rw [Finset.length_toList, h_card_eq]
@@ -722,7 +721,7 @@ lemma czipszer_chords_aux {V : Type u} {k : ℕ}
     have h_val : i.val = j.val := congrArg (fun x => x.val) h_cast
     exact Fin.ext h_val
 
-  -- 5. 占位隔离：先确保骨架与单射性 0 报错，下一步再攻坚弦性质
+  -- 5. Verify the chord property for every image of `f`.
   refine ⟨f, hf_inj, ?_⟩
   intro i
   let x := f i
@@ -788,14 +787,14 @@ lemma czipszer_chords_aux {V : Type u} {k : ℕ}
       exact ⟨List.mem_append.mpr (Or.inr (List.mem_singleton.mpr rfl)),
              List.mem_append.mpr (Or.inl hx_in_r)⟩
 
-/-- 从极大路径端点构造带有 k 条入射弦的圈 (主线总装, 完全 0 sorry!) -/
+/-- Build a cycle with `k` incident chords at `u` from a maximal path endpoint. -/
 lemma czipszer_from_path {V : Type u} [Fintype V] {k : ℕ}
     (G : SimpleGraph V) (u v : V) (p : G.Walk u v)
     (h_edges : p.edges.Nodup) (h_nodup : p.support.Nodup)
     (h_supp : ∀ w, G.Adj u w → w ∈ p.support)
     (hdeg : k + 2 ≤ G.degree u) :
     HasCycleWithKIncidentChords k G := by
-  -- 1. 获取严格保序的邻居列表 l
+  -- 1. Extract the strictly ordered neighbor list `l`.
   obtain ⟨l, hl_eq, hl_nodup, hl_len, hl_adj, hl_sub⟩ :=
     exists_ordered_neighbors_on_path G u v p h_nodup h_supp hdeg
   have hl_ne : l ≠ [] := by
@@ -803,17 +802,17 @@ lemma czipszer_from_path {V : Type u} [Fintype V] {k : ℕ}
     simp only [List.length_nil] at hl_len
     omega
   have hl_len_ge : 2 ≤ l.length := by omega
-  -- 2. 取 l 的最后一个元素 z 作为闭圈远端点
+  -- 2. Take the last element `z` of `l` as the cycle's far endpoint.
   let z := l.getLast hl_ne
   have hz_eq : z = l.getLast hl_ne := rfl
   have hz_mem_l : z ∈ l := List.getLast_mem hl_ne
   have hz_adj : G.Adj u z := hl_adj z hz_mem_l
   have hz_in_supp : z ∈ p.support := hl_sub.subset hz_mem_l
-  -- 3. 截断出子路径 r 与余式 q，拼接回边构成圈 c
+  -- 3. Split off the sub-path `r` and remainder `q`, then close the cycle `c`.
   obtain ⟨r, q, hr_supp, hr_edges, hp_eq⟩ := exists_walk_split_at p z hz_in_supp
   let c := closeCycle r hz_adj
 
-  -- 性质 A：提前证明 c.edges.Nodup，隔离拓扑复杂性
+  -- Property A: prove `c.edges.Nodup` to isolate topological complexity.
   have hc_edges : c.edges.Nodup := by
     rw [closeCycle_edges, List.nodup_append]
     refine ⟨h_edges.sublist hr_edges, List.nodup_singleton _, ?_⟩
@@ -825,19 +824,19 @@ lemma czipszer_from_path {V : Type u} [Fintype V] {k : ℕ}
       hl_ne z hz_eq r hr_supp hr_edges he_r
 
   refine ⟨u, c, hc_edges, ?_, ?_, ?_⟩
-  · -- 性质 B：c.support.dropLast.Nodup
+  · -- Property B: `c.support.dropLast.Nodup`
     rw [closeCycle_support_dropLast]
     exact h_nodup.sublist hr_supp
-  · -- 性质 C：3 ≤ c.length
+  · -- Property C: `3 ≤ c.length`
     have h_pos : 0 < c.length := by
       rw [closeCycle_length]
       omega
     exact cycle_length_ge_three c hc_edges h_pos
-  · -- 性质 D：存在 k 条与 u 入射的单射弦
+  · -- Property D: `k` incident chords at `u` with an injective map
     exact czipszer_chords_aux G u v p l hl_eq hl_nodup hl_len hl_adj hl_sub hl_ne
       z hz_eq r q hp_eq hr_supp hr_edges hz_adj c rfl h_nodup
 
-/-- Czipszer (1961) 最小度引理：总装闭环 -/
+/-- Czipszer (1961) minimum-degree lemma: closing the main argument. -/
 lemma czipszer_min_degree {V : Type u} [Fintype V] [DecidableEq V] {k n : ℕ}
     (hV : Fintype.card V = n + 1) (G : SimpleGraph V)
     (hmin : ∀ v, k + 2 ≤ G.degree v) :
@@ -854,14 +853,14 @@ lemma exists_vert_deg_le_of_avoid {V : Type u} [Fintype V] [DecidableEq V] {k n 
   exact h_avoid (czipszer_min_degree hV G hmin)
 
 /-!
-### 模块四：Bondy 引理与基准步 (n = 3k + 3)
+### Module 4: Bondy lemma and base case (n = 3k + 3)
 -/
 
-/-- 图中是否存在圈（圈长 ≥ 3 的无自相交闭途径） -/
+/-- Existence of a cycle (closed walk of length at least 3 with no self-intersection). -/
 def HasCycle {V : Type u} (G : SimpleGraph V) : Prop :=
   ∃ (v : V) (c : G.Walk v v), c.edges.Nodup ∧ c.support.dropLast.Nodup ∧ 3 ≤ c.length
 
-/-- 森林边数上界在 n = 3k + 3 时弱于 Jiang 上界（纯代数闭环，0 sorry） -/
+/-- The forest edge bound `n ≤ (k + 1) * n - (k + 1) ^ 2` holds at `n = 3k + 3`. -/
 lemma forest_bound_le_jiang_bound (k : ℕ) (hk : 1 ≤ k) (n : ℕ) (hn : n = 3 * k + 3) :
     n ≤ (k + 1) * n - (k + 1) ^ 2 := by
   subst hn
@@ -877,7 +876,7 @@ lemma forest_bound_le_jiang_bound (k : ℕ) (hk : 1 ≤ k) (n : ℕ) (hn : n = 3
     linarith
   linarith
 
-/-- 辅助引理：诱导子图保无圈性 -/
+/-- Helper: induced subgraphs preserve cycle-freeness. -/
 lemma avoid_cycle_of_induce {V : Type u} [Fintype V] [DecidableEq V] {G : SimpleGraph V}
     {s : Set V} (hG : ¬HasCycle G) : ¬HasCycle (G.induce s) := by
   intro ⟨v, c, hc_edges, hc_nodup, hc_len⟩
@@ -890,7 +889,7 @@ lemma avoid_cycle_of_induce {V : Type u} [Fintype V] [DecidableEq V] {G : Simple
   · rw [walkOfInduce_length]
     exact hc_len
 
-/-- 核心洞察：没有圈 ↔ 没有带 0 条弦的圈 -/
+/-- Key insight: having a cycle is equivalent to having a cycle with zero incident chords. -/
 lemma hasCycle_iff_hasCycleWith0Chords {V : Type u} {G : SimpleGraph V} :
     HasCycle G ↔ HasCycleWithKIncidentChords 0 G := by
   constructor
@@ -906,7 +905,7 @@ lemma hasCycle_iff_hasCycleWith0Chords {V : Type u} {G : SimpleGraph V} :
   · rintro ⟨v, c, hc1, hc2, hc3, _⟩
     exact ⟨v, c, hc1, hc2, hc3⟩
 
-/-- 归纳步：无圈图的边数上界证明 -/
+/-- Inductive step: edge-count upper bound for acyclic graphs. -/
 lemma edgeFinset_card_le_card_of_acyclic_aux (n : ℕ) :
     ∀ {V : Type u} [Fintype V] [DecidableEq V] (hV : Fintype.card V = n)
       (G : SimpleGraph V), ¬HasCycle G → G.edgeFinset.card ≤ n := by
@@ -931,26 +930,28 @@ lemma edgeFinset_card_le_card_of_acyclic_aux (n : ℕ) :
       ih hcard (G.induce {x | x ≠ v}) (avoid_cycle_of_induce h_avoid)
     have h_deg : G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v :=
       card_edgeFinset_eq_add_degree G v
-    -- 利用 calc 强制代数对齐，彻底绕开 omega 的变量映射盲区
+    -- Combine the bound with the degree estimate.
     calc
       G.edgeFinset.card = (G.induce {x | x ≠ v}).edgeFinset.card + G.degree v := h_deg
       _ ≤ n + (0 + 1) := Nat.add_le_add h_ind_bound hv
       _ = n + 1 := rfl
 
-/-- 彻底闭环：无圈图（森林）的边数不超过顶点数 -/
+/-- Acyclic graphs (forests) have at most as many edges as vertices. -/
 lemma edgeFinset_card_le_card_of_acyclic {V : Type u} [Fintype V] [DecidableEq V]
     (G : SimpleGraph V) (h_no_cycle : ¬HasCycle G) :
     G.edgeFinset.card ≤ Fintype.card V :=
   edgeFinset_card_le_card_of_acyclic_aux (Fintype.card V) rfl G h_no_cycle
 
 /--
-【AXIOMATIC ISOLATION 2】Bondy 极长圈边数引理。
+[AXIOMATIC ISOLATION 2] Bondy's long-cycle edge bound.
 Source: J.A. Bondy, "Large cycles in graphs", Discrete Mathematics 1 (1971), 121-132.
-Reference in Jiang (2004): Page 181.
-Note: 若图 G 包含圈，且不包含带有 k 条入射弦的圈，则必定存在一个长度为 c 的极长圈（c ≤ n），
-使得全图边数满足二次放缩上界：2 * e(G) ≤ c * (n - c) + c * (k + 1)。
-该定理本身是一项独立且庞大的经典图论工作。在 Jiang (2004) 的论文中，此结论作为前置黑盒被直接引用。
-在此形式化工程中，我们忠实还原 Jiang 的逻辑推演架构，将该定理作为外部定理的公理接口进行声明。
+Reference in Jiang (2004): page 181.
+If `G` contains a cycle and no cycle with `k` incident chords at a vertex, then there exists
+a longest cycle of length `c ≤ n` such that the full edge count satisfies the quadratic bound
+`2 * e(G) ≤ c * (n - c) + c * (k + 1)`.
+This is an independent, classical graph-theory result; Jiang (2004) cites it as a black box.
+We faithfully reproduce Jiang's argument architecture and expose the theorem as an external
+axiom interface here.
 -/
 lemma bondy_cycle_edge_bound {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ}
     (G : SimpleGraph V) (h_avoid : ¬HasCycleWithKIncidentChords k G)
@@ -962,27 +963,27 @@ lemma bondy_cycle_edge_bound {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ}
   letI : DecidableRel G.Adj := Classical.decRel _
   apply JiangBaseCase.bondy_cycle_edge_bound_flat G h_avoid h_cycle
 
-/-- Jiang (2004) 基准步 (n = 3k + 3) 主引理（0 sorry 完全证毕！） -/
+/-- Jiang (2004) main base-case lemma for `n = 3k + 3`. -/
 lemma jiang_base_case {k : ℕ} (hk : 1 ≤ k) {V : Type u} [Fintype V] [DecidableEq V]
     (hV : Fintype.card V = 3 * k + 3) (G : SimpleGraph V)
     (h_avoid : ¬HasCycleWithKIncidentChords k G) :
     G.edgeFinset.card ≤ (k + 1) * (3 * k + 3) - (k + 1) ^ 2 := by
   by_cases h_cyc : HasCycle G
-  · -- 情况 1：图包含圈，由 Bondy 引理与核心二次放缩闭环
+  · -- Case 1: the graph contains a cycle, closed via Bondy and the quadratic bound.
     obtain ⟨c, hc_le, h_bondy⟩ := bondy_cycle_edge_bound G h_avoid h_cyc
     have h_quad := jiang_quadratic_bound k c (Fintype.card V) hV hc_le
     rw [hV] at h_bondy h_quad
     have h_trans : 2 * G.edgeFinset.card ≤ 2 * ((k + 1) * (3 * k + 3) - (k + 1) ^ 2) :=
       le_trans h_bondy h_quad
     omega
-  · -- 情况 2：图无圈（森林），边数 ≤ n，代数直接闭环
+  · -- Case 2: the graph is a forest; edges ≤ n follows directly.
     have h_forest := edgeFinset_card_le_card_of_acyclic G h_cyc
     have h_alg := forest_bound_le_jiang_bound k hk (Fintype.card V) hV
     rw [hV] at h_forest h_alg
     omega
 
 /-!
-### 模块五：主定理总装 (Jiang 2004 Theorem 1 for JSP-000628)
+### Module 5: Main theorem assembly (Jiang 2004 Theorem 1 for JSP-000628)
 -/
 
 lemma erdos_767_upper_bound_card (k : ℕ) (hk : 1 ≤ k) (m : ℕ) :
@@ -1000,7 +1001,7 @@ lemma erdos_767_upper_bound_card (k : ℕ) (hk : 1 ≤ k) (m : ℕ) :
     have hn : 3 * k + 3 ≤ 3 * k + 3 + m := by omega
     exact induction_step_deg_le hV G v hn hv hG (fun hW H hH => ih hW H hH)
 
-/-- Erdős Problem 767 / JSP-000628 终极大定理 -/
+/-- Erdős Problem 767 / JSP-000628 main theorem. -/
 theorem erdos_767_upper_bound (k : ℕ) (hk : 1 ≤ k) :
     ∀ (n : ℕ) (hn : 3 * k + 3 ≤ n) (G : SimpleGraph (Fin n)),
       ¬HasCycleWithKIncidentChords k G →
