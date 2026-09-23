@@ -16,3 +16,9 @@ rev = "v4.34.0"
 
 [[lean_lib]]
 name = "SunPrize"
+
+[[lean_lib]]
+name = "JiangBaseCase"
+
+[[lean_lib]]
+name = "JSP_000628"

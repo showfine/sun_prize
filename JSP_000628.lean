@@ -5,6 +5,7 @@ import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.Card
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
+import JiangBaseCase
 
 open Finset SimpleGraph
 open scoped SimpleGraph
@@ -956,7 +957,10 @@ lemma bondy_cycle_edge_bound {V : Type u} [Fintype V] [DecidableEq V] {k : ℕ}
     (h_cycle : HasCycle G) :
     ∃ c : ℕ, c ≤ Fintype.card V ∧
       2 * G.edgeFinset.card ≤ c * (Fintype.card V - c) + c * (k + 1) := by
-  sorry
+  change ¬JiangBaseCase.BondyHasCycleWithKIncidentChords k G at h_avoid
+  change JiangBaseCase.BondyHasCycle G at h_cycle
+  letI : DecidableRel G.Adj := Classical.decRel _
+  apply JiangBaseCase.bondy_cycle_edge_bound_flat G h_avoid h_cycle
 
 /-- Jiang (2004) 基准步 (n = 3k + 3) 主引理（0 sorry 完全证毕！） -/
 lemma jiang_base_case {k : ℕ} (hk : 1 ≤ k) {V : Type u} [Fintype V] [DecidableEq V]
